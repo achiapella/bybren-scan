@@ -83,6 +83,7 @@
     <h1 id="hi">¡Listo!</h1>
     <p class="sub">Tu tarjeta está creada. Agregala a Wallet para empezar a sumar sellos.</p>
     <button id="addBtn">Agregar mi tarjeta a Wallet</button>
+    <p class="muted" id="tip" style="margin-top:10px;"></p>
     <p class="muted" style="margin-top:12px; word-break:break-all;">Si no se abre, entrá a:<br/><span id="installUrl"></span></p>
   </div>
 
@@ -179,6 +180,15 @@
       var install = await pollInstall(d.uniqueId);
       if (!install) { show("form"); el("submit").disabled = false; toast("La tarjeta tardó más de lo esperado. Probá de nuevo en un minuto.", true); return; }
       window.__install = install.hostedInstallUrl;
+      var ua = navigator.userAgent;
+      if (/Android/i.test(ua)) {
+        window.__install = install.googleSaveUrl || install.hostedInstallUrl;
+        el("addBtn").textContent = "Agregar a Google Wallet";
+        el("tip").textContent = "Se abre Google Wallet: elegí tu cuenta y guardá. Abrilo en Chrome (no en Instagram/WhatsApp).";
+      } else if (/iPhone|iPad|iPod/i.test(ua)) {
+        el("addBtn").textContent = "Agregar a Apple Wallet";
+        el("tip").textContent = "Si estás en Instagram/WhatsApp, tocá “Abrir en Safari”.";
+      }
       el("hi").textContent = "¡Listo, " + name.split(" ")[0] + "!";
       el("installUrl").textContent = install.hostedInstallUrl;
       show("ready");
