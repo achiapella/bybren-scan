@@ -51,8 +51,11 @@
     <p class="sub">Dejanos tus datos y recibí tu tarjeta de sellos en Apple Wallet o Google Wallet.</p>
 
     <form id="signup" novalidate>
-      <label for="name">Nombre</label>
-      <input id="name" name="name" type="text" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Tu nombre" />
+      <label for="firstName">Nombre</label>
+      <input id="firstName" name="given-name" type="text" autocomplete="given-name" autocapitalize="words" enterkeyhint="next" placeholder="Tu nombre" />
+
+      <label for="lastName">Apellido</label>
+      <input id="lastName" name="family-name" type="text" autocomplete="family-name" autocapitalize="words" enterkeyhint="next" placeholder="Tu apellido" />
 
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" enterkeyhint="next" placeholder="tu@email.com" />
@@ -135,11 +138,14 @@
     this.setSelectionRange(p, p);
   });
 
-  // Enter en Nombre/Email pasa al siguiente campo; en el resto envia el form.
-  ["name","email","phone"].forEach(function(id){
-    var input = el(id);
-    input.addEventListener("keydown", function(e){
-      if (e.key === "Enter" && id !== "phone") { e.preventDefault(); var next = id === "name" ? el("email") : el("phone"); next && next.focus(); }
+  // Enter en cada campo pasa al siguiente; en el ultimo envia el form.
+  var order = ["firstName","lastName","email","phone"];
+  order.forEach(function(id, idx){
+    el(id).addEventListener("keydown", function(e){
+      if (e.key === "Enter") {
+        var next = order[idx + 1];
+        if (next) { e.preventDefault(); el(next).focus(); }
+      }
     });
   });
 
@@ -156,10 +162,13 @@
 
   el("signup").addEventListener("submit", async function (e) {
     e.preventDefault();
-    var name = el("name").value.trim();
+    var firstName = el("firstName").value.trim();
+    var lastName = el("lastName").value.trim();
+    var name = (firstName + " " + lastName).trim();
     var email = el("email").value.trim();
     var mobile = waNumber(el("phone").value);
-    if (!name) { toast("Poné tu nombre.", true); el("name").focus(); return; }
+    if (!firstName) { toast("Poné tu nombre.", true); el("firstName").focus(); return; }
+    if (!lastName) { toast("Poné tu apellido.", true); el("lastName").focus(); return; }
     if (!email || email.indexOf("@") < 0) { toast("Poné un email válido.", true); el("email").focus(); return; }
     if (!el("consent").checked) { toast("Tenés que aceptar los términos.", true); return; }
 
@@ -189,7 +198,7 @@
         el("addBtn").textContent = "Agregar a Apple Wallet";
         el("tip").textContent = "Si estás en Instagram/WhatsApp, tocá “Abrir en Safari”.";
       }
-      el("hi").textContent = "¡Listo, " + name.split(" ")[0] + "!";
+      el("hi").textContent = "¡Listo, " + firstName + "!";
       el("installUrl").textContent = install.hostedInstallUrl;
       show("ready");
     } else if (d.outcome === "redirect_existing") {
@@ -203,7 +212,7 @@
     }
   });
 
-  el("name").focus();
+  el("firstName").focus();
 </script>
 </body>
 </html>
