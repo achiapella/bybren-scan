@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>ByBren - Sumate al club</title>
+<style>
+  :root { --brand:#7B66A8; --brand-dark:#5D4A84; --soft:#EEE9F7; --ink:#3A3352; --muted:#8A84A0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--soft); color:var(--ink); }
+  .wrap { max-width:460px; margin:0 auto; padding:18px; }
+  header { text-align:center; padding:14px 0 6px; }
+  header .logo { font-family:Georgia,"Times New Roman",serif; letter-spacing:3px; font-size:22px; color:var(--brand-dark); }
+  .card { background:#fff; border-radius:20px; padding:20px; box-shadow:0 12px 40px -20px rgba(58,51,82,.45); margin-top:14px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  p.sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
+  input[type=text], input[type=email] { width:100%; padding:14px; font-size:16px; border:1px solid #E0DAEE; border-radius:12px; background:#FBFAFE; }
+  .check { display:flex; gap:10px; align-items:flex-start; margin-top:14px; font-size:13px; color:#5D4A84; }
+  .check input { margin-top:3px; }
+  button { width:100%; padding:16px; font-size:16px; font-weight:600; border:0; border-radius:14px; color:#fff; background:var(--brand); margin-top:16px; }
+  button[disabled] { opacity:.5; }
+  button.ghost { background:#fff; color:var(--brand-dark); border:1px solid #E0DAEE; }
+  .muted { color:var(--muted); font-size:12px; }
+  .toast { margin-top:12px; padding:12px; border-radius:12px; font-size:14px; background:var(--soft); color:var(--brand-dark); }
+  .toast.err { background:#FDECF1; color:#B23A5B; }
+  .hidden { display:none; }
+  .spinner { width:26px; height:26px; border:3px solid #E0DAEE; border-top-color:var(--brand); border-radius:50%; animation:spin 1s linear infinite; margin:8px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .center { text-align:center; }
+  .footer { text-align:center; margin:16px 0 30px; }
+  .terms { font-size:11px; color:var(--muted); margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">BY BREN SCHOR</div><div class="muted">Club de fidelidad</div></header>
+
+  <div id="form" class="card">
+    <h1>Sumate al club</h1>
+    <p class="sub">Dejanos tus datos y recibí tu tarjeta de sellos en Apple Wallet o Google Wallet.</p>
+    <label>Nombre</label>
+    <input id="name" type="text" autocomplete="name" placeholder="Tu nombre" />
+    <label>Email</label>
+    <input id="email" type="email" autocomplete="email" placeholder="tu@email.com" />
+    <label class="check"><input id="consent" type="checkbox" /> Acepto los términos del programa y el aviso de privacidad.</label>
+    <button id="submit">Crear mi tarjeta</button>
+    <div id="msg" class="toast hidden"></div>
+    <div class="terms">Usamos tu nombre y email solo para el programa de fidelidad. Podés pedir la baja cuando quieras. El pase se emite a través de un proveedor de Wallet.</div>
+  </div>
+
+  <div id="waiting" class="card center hidden">
+    <h1>Preparando tu tarjeta…</h1>
+    <div class="spinner"></div>
+    <p class="sub">Esto puede tardar hasta un minuto.</p>
+  </div>
+
+  <div id="ready" class="card hidden">
+    <h1 id="hi">¡Listo!</h1>
+    <p class="sub">Tu tarjeta está creada. Agregala a Wallet para empezar a sumar sellos.</p>
+    <button id="addBtn">Agregar mi tarjeta a Wallet</button>
+    <p class="muted" style="margin-top:12px; word-break:break-all;">Si no se abre, entrá a:<br/><span id="installUrl"></span></p>
+  </div>
+
+  <div id="exists" class="card hidden">
+    <h1>Ya tenés tarjeta</h1>
+    <p class="sub">Ese email ya tiene una tarjeta del club. Buscala en tu Wallet o consultanos en el local.</p>
+  </div>
+
+  <div class="footer muted">ByBren · Programa de fidelidad</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  var SUPABASE_URL = "https://ucfylsekubkgzdkikhkm.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_8XE4Zi5AYACETb9nJPKsXg_yzgWg726";
+  var SLUG = "cafe-piloto";
+  var CAMPAIGN_ID = "c96fdd6c-3e3c-4fef-afe7-d36a041be995";
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function el(id) { return document.getElementById(id); }
+  function show(id) { ["form","waiting","ready","exists"].forEach(function(x){ el(x).classList.add("hidden"); }); if (id) el(id).classList.remove("hidden"); }
+  function toast(text, isErr) { var m = el("msg"); m.textContent = text; m.className = "toast" + (isErr ? " err" : ""); m.classList.remove("hidden"); }
+  function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  async function pollInstall(cardId) {
+    for (var i = 0; i < 40; i++) {
+      var r = await client.rpc("get_card_install", { p_card_unique_id: cardId });
+      if (r.data && r.data.status === "ready") return r.data;
+      await sleep(3000);
+    }
+    return null;
+  }
+
+  el("addBtn").onclick = function () { if (window.__install) window.location.href = window.__install; };
+
+  el("submit").onclick = async function () {
+    var name = el("name").value.trim();
+    var email = el("email").value.trim();
+    if (!name) { toast("Poné tu nombre.", true); return; }
+    if (!email || email.indexOf("@") < 0) { toast("Poné un email válido.", true); return; }
+    if (!el("consent").checked) { toast("Tenés que aceptar los términos.", true); return; }
+
+    el("submit").disabled = true;
+    var res = await client.rpc("register_public_campaign_signup", {
+      slug_input: SLUG,
+      campaign_id_input: CAMPAIGN_ID,
+      customer_name_input: name,
+      customer_email_input: email
+    });
+    if (res.error) { el("submit").disabled = false; toast("Error: " + res.error.message, true); return; }
+
+    var d = res.data || {};
+    if (d.outcome === "issued") {
+      await client.rpc("record_consent", { p_card_unique_id: d.uniqueId, p_terms_version: "v1", p_privacy_version: "v1" });
+      show("waiting");
+      var install = await pollInstall(d.uniqueId);
+      if (!install) { show("form"); el("submit").disabled = false; toast("La tarjeta tardó más de lo esperado. Probá de nuevo en un minuto.", true); return; }
+      window.__install = install.hostedInstallUrl;
+      el("hi").textContent = "¡Listo, " + name.split(" ")[0] + "!";
+      el("installUrl").textContent = install.hostedInstallUrl;
+      show("ready");
+    } else if (d.outcome === "redirect_existing") {
+      show("exists");
+    } else if (d.outcome === "campaign_disabled_no_existing") {
+      el("submit").disabled = false;
+      toast("El programa no está activo en este momento.", true);
+    } else {
+      el("submit").disabled = false;
+      toast("No pudimos crear tu tarjeta: " + (d.error || d.outcome || "intentá de nuevo"), true);
+    }
+  };
+</script>
+</body>
+</html>
