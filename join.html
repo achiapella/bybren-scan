@@ -14,11 +14,21 @@
   .card { background:#fff; border-radius:20px; padding:20px; box-shadow:0 12px 40px -20px rgba(58,51,82,.45); margin-top:14px; }
   h1 { font-size:20px; margin:0 0 6px; }
   p.sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
-  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
-  input[type=text], input[type=email] { width:100%; padding:14px; font-size:16px; border:1px solid #E0DAEE; border-radius:12px; background:#FBFAFE; }
-  .check { display:flex; gap:10px; align-items:flex-start; margin-top:14px; font-size:13px; color:#5D4A84; }
-  .check input { margin-top:3px; }
-  button { width:100%; padding:16px; font-size:16px; font-weight:600; border:0; border-radius:14px; color:#fff; background:var(--brand); margin-top:16px; }
+  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 4px; }
+  .opt { text-transform:none; letter-spacing:0; color:#B4AEC4; }
+  input[type=text], input[type=email], input[type=tel] {
+    width:100%; padding:15px; font-size:17px; border:1px solid #E0DAEE; border-radius:12px; background:#FBFAFE;
+    -webkit-appearance:none; appearance:none;
+  }
+  input:focus { outline:none; border-color:var(--brand); background:#fff; }
+  .phone { display:flex; align-items:stretch; border:1px solid #E0DAEE; border-radius:12px; background:#FBFAFE; overflow:hidden; }
+  .phone:focus-within { border-color:var(--brand); background:#fff; }
+  .phone .prefix { display:flex; align-items:center; padding:0 10px; font-size:17px; color:var(--brand-dark); background:var(--soft); white-space:nowrap; }
+  .phone input { border:0; background:transparent; border-radius:0; }
+  .hint { font-size:12px; color:var(--muted); margin-top:5px; }
+  .check { display:flex; gap:10px; align-items:flex-start; margin-top:16px; font-size:13px; color:#5D4A84; }
+  .check input { margin-top:3px; width:20px; height:20px; }
+  button { width:100%; padding:17px; font-size:17px; font-weight:600; border:0; border-radius:14px; color:#fff; background:var(--brand); margin-top:18px; }
   button[disabled] { opacity:.5; }
   button.ghost { background:#fff; color:var(--brand-dark); border:1px solid #E0DAEE; }
   .muted { color:var(--muted); font-size:12px; }
@@ -29,7 +39,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .center { text-align:center; }
   .footer { text-align:center; margin:16px 0 30px; }
-  .terms { font-size:11px; color:var(--muted); margin-top:10px; }
+  .terms { font-size:11px; color:var(--muted); margin-top:12px; }
 </style>
 </head>
 <body>
@@ -39,14 +49,28 @@
   <div id="form" class="card">
     <h1>Sumate al club</h1>
     <p class="sub">Dejanos tus datos y recibí tu tarjeta de sellos en Apple Wallet o Google Wallet.</p>
-    <label>Nombre</label>
-    <input id="name" type="text" autocomplete="name" placeholder="Tu nombre" />
-    <label>Email</label>
-    <input id="email" type="email" autocomplete="email" placeholder="tu@email.com" />
-    <label class="check"><input id="consent" type="checkbox" /> Acepto los términos del programa y el aviso de privacidad.</label>
-    <button id="submit">Crear mi tarjeta</button>
+
+    <form id="signup" novalidate>
+      <label for="name">Nombre</label>
+      <input id="name" name="name" type="text" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Tu nombre" />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" enterkeyhint="next" placeholder="tu@email.com" />
+
+      <label for="phone">Teléfono <span class="opt">(opcional)</span></label>
+      <div class="phone">
+        <span class="prefix">+54 9</span>
+        <input id="phone" name="phone" type="tel" autocomplete="tel-national" inputmode="numeric" enterkeyhint="done" placeholder="11 2345 6789" />
+      </div>
+      <div class="hint">Formato WhatsApp. Ej.: 11 2345-6789 (sin el 0 ni el 15).</div>
+
+      <label class="check"><input id="consent" type="checkbox" /> Acepto los términos del programa y el aviso de privacidad.</label>
+
+      <button id="submit" type="submit">Crear mi tarjeta</button>
+    </form>
+
     <div id="msg" class="toast hidden"></div>
-    <div class="terms">Usamos tu nombre y email solo para el programa de fidelidad. Podés pedir la baja cuando quieras. El pase se emite a través de un proveedor de Wallet.</div>
+    <div class="terms">Usamos tu nombre, email y (si lo dejás) tu teléfono solo para el programa de fidelidad. Podés pedir la baja cuando quieras. El pase se emite a través de un proveedor de Wallet.</div>
   </div>
 
   <div id="waiting" class="card center hidden">
@@ -64,7 +88,7 @@
 
   <div id="exists" class="card hidden">
     <h1>Ya tenés tarjeta</h1>
-    <p class="sub">Ese email ya tiene una tarjeta del club. Buscala en tu Wallet o consultanos en el local.</p>
+    <p class="sub">Ese email o teléfono ya tiene una tarjeta del club. Buscala en tu Wallet o consultanos en el local.</p>
   </div>
 
   <div class="footer muted">ByBren · Programa de fidelidad</div>
@@ -83,6 +107,41 @@
   function toast(text, isErr) { var m = el("msg"); m.textContent = text; m.className = "toast" + (isErr ? " err" : ""); m.classList.remove("hidden"); }
   function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
 
+  // --- Telefono: muestra formato local, guarda +549XXXXXXXXXX (WhatsApp) ---
+  function nationalDigits(v) {
+    var d = (v || "").replace(/\D/g, "");
+    if (d.indexOf("549") === 0) d = d.slice(3);
+    else if (d.indexOf("54") === 0) d = d.slice(2);
+    return d;
+  }
+  function formatPhone(v) {
+    var d = nationalDigits(v).slice(0, 11);
+    if (!d) return "";
+    var areaLen = d.indexOf("11") === 0 ? 2 : 3;
+    var area = d.slice(0, areaLen);
+    var rest = d.slice(areaLen);
+    if (rest.length > 4) rest = rest.slice(0, rest.length - 4) + "-" + rest.slice(rest.length - 4);
+    return area + (rest ? " " + rest : "");
+  }
+  function waNumber(formatted) {
+    var d = nationalDigits(formatted);
+    return d ? "549" + d : "";
+  }
+  el("phone").addEventListener("input", function () {
+    var pos = this.value.length - this.selectionStart;
+    this.value = formatPhone(this.value);
+    var p = Math.max(0, this.value.length - pos);
+    this.setSelectionRange(p, p);
+  });
+
+  // Enter en Nombre/Email pasa al siguiente campo; en el resto envia el form.
+  ["name","email","phone"].forEach(function(id){
+    var input = el(id);
+    input.addEventListener("keydown", function(e){
+      if (e.key === "Enter" && id !== "phone") { e.preventDefault(); var next = id === "name" ? el("email") : el("phone"); next && next.focus(); }
+    });
+  });
+
   async function pollInstall(cardId) {
     for (var i = 0; i < 40; i++) {
       var r = await client.rpc("get_card_install", { p_card_unique_id: cardId });
@@ -94,11 +153,13 @@
 
   el("addBtn").onclick = function () { if (window.__install) window.location.href = window.__install; };
 
-  el("submit").onclick = async function () {
+  el("signup").addEventListener("submit", async function (e) {
+    e.preventDefault();
     var name = el("name").value.trim();
     var email = el("email").value.trim();
-    if (!name) { toast("Poné tu nombre.", true); return; }
-    if (!email || email.indexOf("@") < 0) { toast("Poné un email válido.", true); return; }
+    var mobile = waNumber(el("phone").value);
+    if (!name) { toast("Poné tu nombre.", true); el("name").focus(); return; }
+    if (!email || email.indexOf("@") < 0) { toast("Poné un email válido.", true); el("email").focus(); return; }
     if (!el("consent").checked) { toast("Tenés que aceptar los términos.", true); return; }
 
     el("submit").disabled = true;
@@ -106,7 +167,8 @@
       slug_input: SLUG,
       campaign_id_input: CAMPAIGN_ID,
       customer_name_input: name,
-      customer_email_input: email
+      customer_email_input: email,
+      customer_mobile_input: mobile
     });
     if (res.error) { el("submit").disabled = false; toast("Error: " + res.error.message, true); return; }
 
@@ -129,7 +191,9 @@
       el("submit").disabled = false;
       toast("No pudimos crear tu tarjeta: " + (d.error || d.outcome || "intentá de nuevo"), true);
     }
-  };
+  });
+
+  el("name").focus();
 </script>
 </body>
 </html>
